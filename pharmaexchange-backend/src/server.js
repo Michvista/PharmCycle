@@ -22,7 +22,12 @@ const analyticsRoutes = require('./routes/analytics.routes');
 
 const app = express();
 
-app.use(cors({ origin: process.env.CLIENT_URL || '*' }));
+let allowedOrigin = process.env.CLIENT_URL || '*';
+if (allowedOrigin !== '*' && allowedOrigin.endsWith('/')) {
+  allowedOrigin = allowedOrigin.slice(0, -1);
+}
+
+app.use(cors({ origin: allowedOrigin }));
 app.use(express.json());
 
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
