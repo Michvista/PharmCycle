@@ -53,7 +53,6 @@ export default function ScanPage() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [scanType, setScanType] = useState<"text" | "barcode">("text");
-  const html5QrCodeRef = useRef<any>(null);
   const { success: toastSuccess, error: toastError } = useToast();
 
   function playBeep() {
@@ -76,10 +75,6 @@ export default function ScanPage() {
 
   // Stop camera stream when component unmounts or mode changes away from "live"
   const stopCamera = useCallback(() => {
-    if (html5QrCodeRef.current) {
-      html5QrCodeRef.current.stop().catch(() => {});
-      html5QrCodeRef.current = null;
-    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
@@ -111,74 +106,37 @@ export default function ScanPage() {
     }
   }
 
-  async function startBarcodeScanner(mode: "environment" | "user" = facingMode) {
-    setCameraError(null);
-    stopCamera();
-    setScanMode("live");
+  async function runBarcodeDecode(file: File) {
+    setOcrLoading(true);
+    setOcrProgress(0);
+    setLookupResult(null);
+    setForm(emptyForm);
 
     try {
       const { Html5Qrcode } = await import("html5-qrcode");
       
-      // Allow minor delay to ensure container renders
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      
-      const scanner = new Html5Qrcode("barcode-reader-container");
-      html5QrCodeRef.current = scanner;
-
-      await scanner.start(
-        { facingMode: mode },
-        {
-          fps: 10,
-          qrbox: (width, height) => {
-            const size = Math.min(width, height) * 0.75;
-            return { width: size, height: size };
-          }
-        },
-        async (decodedText) => {
-          playBeep();
-          toastSuccess(`Scanned barcode/QR: ${decodedText}`);
-          setForm((prev) => ({ ...prev, batchNumber: decodedText }));
-          
-          if (html5QrCodeRef.current) {
-            try {
-              await html5QrCodeRef.current.stop();
-            } catch {}
-            html5QrCodeRef.current = null;
-          }
-          
-          setScanMode("preview");
-          await tryBatchLookup(decodedText);
-        },
-        () => {}
-      );
-    } catch (err) {
-      console.error("Barcode start error, trying user camera:", err);
-      try {
-        const { Html5Qrcode } = await import("html5-qrcode");
-        const scanner = new Html5Qrcode("barcode-reader-container");
-        html5QrCodeRef.current = scanner;
-        
-        await scanner.start(
-          { facingMode: "user" },
-          { fps: 10 },
-          async (decodedText) => {
-            playBeep();
-            toastSuccess(`Scanned barcode/QR: ${decodedText}`);
-            setForm((prev) => ({ ...prev, batchNumber: decodedText }));
-            
-            if (html5QrCodeRef.current) {
-              try { await html5QrCodeRef.current.stop(); } catch {}
-              html5QrCodeRef.current = null;
-            }
-            setScanMode("preview");
-            await tryBatchLookup(decodedText);
-          },
-          () => {}
-        );
-      } catch (innerErr) {
-        setCameraError("Could not start barcode scanner. Please check camera permissions or upload.");
-        setScanMode("idle");
+      // Ensure dummy element exists
+      let dummy = document.getElementById("qr-decoder-dummy");
+      if (!dummy) {
+        dummy = document.createElement("div");
+        dummy.id = "qr-decoder-dummy";
+        dummy.style.display = "none";
+        document.body.appendChild(dummy);
       }
+
+      const html5QrCode = new Html5Qrcode("qr-decoder-dummy");
+      const decodedText = await html5QrCode.scanFile(file, false);
+      
+      playBeep();
+      toastSuccess(`Scanned barcode/QR: ${decodedText}`);
+      setForm((prev) => ({ ...prev, batchNumber: decodedText }));
+      
+      await tryBatchLookup(decodedText);
+    } catch (err) {
+      toastError("No QR code or Barcode detected. Try adjusting focus/lighting or upload a clearer photo.");
+      console.error("Barcode decode error:", err);
+    } finally {
+      setOcrLoading(false);
     }
   }
 
@@ -216,28 +174,17 @@ export default function ScanPage() {
     }
   }
 
-  async function initiateCamera(type: "text" | "barcode" = scanType, mode: "environment" | "user" = facingMode) {
-    if (type === "barcode") {
-      await startBarcodeScanner(mode);
-    } else {
-      await startCamera(mode);
-    }
-  }
-
   function toggleCamera() {
     const nextMode = facingMode === "environment" ? "user" : "environment";
     setFacingMode(nextMode);
-    initiateCamera(scanType, nextMode);
+    startCamera(nextMode);
   }
 
-  async function handleTypeChange(newType: "text" | "barcode") {
+  function handleTypeChange(newType: "text" | "barcode") {
     setScanType(newType);
-    if (scanMode === "live") {
-      await initiateCamera(newType, facingMode);
-    }
   }
 
-  // Capture current frame from video and run OCR
+  // Capture current frame from video and run OCR / Barcode decode
   async function captureFrame() {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
@@ -255,7 +202,12 @@ export default function ScanPage() {
       const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(canvas.toDataURL("image/jpeg", 0.92));
-      await runOcr(file);
+      
+      if (scanType === "text") {
+        await runOcr(file);
+      } else {
+        await runBarcodeDecode(file);
+      }
     }, "image/jpeg", 0.92);
   }
 
@@ -315,7 +267,12 @@ export default function ScanPage() {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(URL.createObjectURL(file));
       setScanMode("preview");
-      runOcr(file);
+      
+      if (scanType === "text") {
+        runOcr(file);
+      } else {
+        runBarcodeDecode(file);
+      }
     }
     e.target.value = "";
   }
@@ -409,13 +366,7 @@ export default function ScanPage() {
                     playsInline
                     muted
                     autoPlay
-                    className={`w-full h-full object-cover ${scanType === "text" ? "block" : "hidden"}`}
-                  />
-
-                  {/* HTML5 QR/Barcode Reader Container */}
-                  <div
-                    id="barcode-reader-container"
-                    className={`w-full h-full min-h-[260px] bg-black ${scanType === "barcode" ? "block" : "hidden"}`}
+                    className="w-full h-full object-cover"
                   />
 
                   {/* Google Lens-style targeting overlay */}
@@ -447,25 +398,14 @@ export default function ScanPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  {scanType === "text" ? (
-                    <button
-                      type="button"
-                      onClick={captureFrame}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl text-sm cursor-pointer transition-colors"
-                    >
-                      <AppIcon name="camera" size={18} />
-                      Capture &amp; Scan
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled
-                      className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-900/40 text-green-300 font-semibold rounded-xl text-sm cursor-default"
-                    >
-                      <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
-                      Scanning QR/Barcode...
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={captureFrame}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl text-sm cursor-pointer transition-colors"
+                  >
+                    <AppIcon name="camera" size={18} />
+                    {scanType === "text" ? "Capture & Scan Text" : "Capture & Decode Code"}
+                  </button>
                   <button
                     type="button"
                     onClick={toggleCamera}
@@ -502,7 +442,9 @@ export default function ScanPage() {
                     <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
                       <div className="w-8 h-8 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
                       <p className="text-sm font-medium text-gray-700">
-                        {ocrProgress > 0 ? `Processing… ${ocrProgress}%` : "Analyzing with AI…"}
+                        {scanType === "text"
+                          ? (ocrProgress > 0 ? `Processing… ${ocrProgress}%` : "Analyzing with AI…")
+                          : "Decoding QR/Barcode…"}
                       </p>
                     </div>
                   )}
@@ -510,7 +452,7 @@ export default function ScanPage() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => initiateCamera(scanType, facingMode)}
+                    onClick={() => startCamera(facingMode)}
                     disabled={ocrLoading}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm cursor-pointer transition-colors"
                   >
@@ -549,7 +491,7 @@ export default function ScanPage() {
                 {/* Primary: live camera */}
                 <button
                   type="button"
-                  onClick={() => initiateCamera(scanType, facingMode)}
+                  onClick={() => startCamera(facingMode)}
                   className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl text-sm cursor-pointer transition-colors"
                 >
                   <AppIcon name="camera" size={18} />
@@ -662,11 +604,6 @@ export default function ScanPage() {
         @keyframes scan {
           0%, 100% { transform: translateY(0); opacity: 1; }
           50% { transform: translateY(var(--scan-height, 10rem)); opacity: 0.7; }
-        }
-        #barcode-reader-container video {
-          width: 100% !important;
-          height: 100% !important;
-          object-fit: cover !important;
         }
       `}</style>
     </>
