@@ -510,7 +510,7 @@ export default function ScanPage() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={startCamera}
+                    onClick={() => initiateCamera(scanType, facingMode)}
                     disabled={ocrLoading}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm cursor-pointer transition-colors"
                   >
@@ -549,7 +549,7 @@ export default function ScanPage() {
                 {/* Primary: live camera */}
                 <button
                   type="button"
-                  onClick={startCamera}
+                  onClick={() => initiateCamera(scanType, facingMode)}
                   className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl text-sm cursor-pointer transition-colors"
                 >
                   <AppIcon name="camera" size={18} />
@@ -661,7 +661,12 @@ export default function ScanPage() {
       <style>{`
         @keyframes scan {
           0%, 100% { transform: translateY(0); opacity: 1; }
-          50% { transform: translateY(calc(10rem - 2px)); opacity: 0.7; }
+          50% { transform: translateY(var(--scan-height, 10rem)); opacity: 0.7; }
+        }
+        #barcode-reader-container video {
+          width: 100% !important;
+          height: 100% !important;
+          object-fit: cover !important;
         }
       `}</style>
     </>
