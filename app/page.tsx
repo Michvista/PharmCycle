@@ -83,7 +83,7 @@ export default function LandingPage() {
       </main>
 
       <footer className="bg-white border-t border-gray-200 py-8 text-center text-xs text-gray-400">
-        © 2025 PharmCycle. All rights reserved.
+        © 2026 PharmCycle. All rights reserved.
       </footer>
     </div>
   );

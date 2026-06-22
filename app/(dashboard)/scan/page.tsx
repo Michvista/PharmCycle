@@ -106,6 +106,58 @@ export default function ScanPage() {
     }
   }
 
+  // Look up product details from free UPC databases (no API key needed)
+  async function lookupUpcProduct(barcode: string) {
+    // Try Open Food Facts first (great for consumer goods & pharma)
+    try {
+      const res = await fetch(
+        `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`,
+        { signal: AbortSignal.timeout(4000) }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 1 && data.product) {
+          const p = data.product;
+          const name = p.product_name || p.product_name_en || "";
+          const brand = p.brands || "";
+          const fullName = [brand, name].filter(Boolean).join(" ").trim();
+          if (fullName) {
+            setForm((prev) => ({
+              ...prev,
+              medicineName: fullName,
+              ...(p.quantity && { strength: p.quantity }),
+            }));
+            toastSuccess(`Product found: ${fullName}`);
+            return;
+          }
+        }
+      }
+    } catch { /* try next */ }
+
+    // Try UPCItemDB free trial (100 lookups/day, no key)
+    try {
+      const res = await fetch(
+        `https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`,
+        { signal: AbortSignal.timeout(4000) }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const item = data.items?.[0];
+        if (item) {
+          const name = item.title || item.brand || "";
+          if (name) {
+            setForm((prev) => ({
+              ...prev,
+              medicineName: name,
+            }));
+            toastSuccess(`Product found: ${name}`);
+            return;
+          }
+        }
+      }
+    } catch { /* nothing found */ }
+  }
+
   async function runBarcodeDecode(file: File) {
     setOcrLoading(true);
     setOcrProgress(0);
@@ -128,12 +180,14 @@ export default function ScanPage() {
       const decodedText = await html5QrCode.scanFile(file, false);
       
       playBeep();
-      toastSuccess(`Scanned barcode/QR: ${decodedText}`);
+      toastSuccess(`Barcode decoded: ${decodedText}`);
       setForm((prev) => ({ ...prev, batchNumber: decodedText }));
       
+      // First try internal inventory lookup, then public UPC databases
       await tryBatchLookup(decodedText);
+      await lookupUpcProduct(decodedText);
     } catch (err) {
-      toastError("No QR code or Barcode detected. Try adjusting focus/lighting or upload a clearer photo.");
+      toastError("No QR code or Barcode detected. Try better lighting, hold steady, or upload a clearer photo.");
       console.error("Barcode decode error:", err);
     } finally {
       setOcrLoading(false);
@@ -144,6 +198,10 @@ export default function ScanPage() {
   async function startCamera(mode: "environment" | "user" = facingMode) {
     setCameraError(null);
     stopCamera();
+    // Switch to live mode FIRST so the <video> element is in the DOM before we assign srcObject
+    setScanMode("live");
+    // Small yield to let React commit the DOM update
+    await new Promise((r) => setTimeout(r, 50));
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: mode, width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -151,25 +209,24 @@ export default function ScanPage() {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        videoRef.current.play().catch(() => {});
       }
-      setScanMode("live");
     } catch (err) {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-        });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          await videoRef.current.play();
+          videoRef.current.play().catch(() => {});
         }
-        setScanMode("live");
       } catch (innerErr) {
         const msg = innerErr instanceof Error ? innerErr.message : "Camera not accessible";
-        setCameraError(msg.includes("NotAllowed") || msg.includes("Permission")
-          ? "Camera permission denied. Please allow camera access and try again."
-          : "Could not open camera. Try uploading a photo instead.");
+        setCameraError(
+          msg.includes("NotAllowed") || msg.includes("Permission")
+            ? "Camera permission denied. Please allow camera access and try again."
+            : "Could not open camera. Try uploading a photo instead."
+        );
+        setScanMode("idle");
       }
     }
   }
@@ -189,9 +246,31 @@ export default function ScanPage() {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d")?.drawImage(video, 0, 0);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const W = video.videoWidth;
+    const H = video.videoHeight;
+
+    // Calculate crop window (centered target box)
+    let cropW: number;
+    let cropH: number;
+    if (scanType === "text") {
+      cropW = W * 0.75;
+      cropH = H * 0.55;
+    } else {
+      // square for barcode/QR
+      const size = Math.min(W, H) * 0.65;
+      cropW = size;
+      cropH = size;
+    }
+
+    const sX = (W - cropW) / 2;
+    const sY = (H - cropH) / 2;
+
+    canvas.width = cropW;
+    canvas.height = cropH;
+    ctx.drawImage(video, sX, sY, cropW, cropH, 0, 0, cropW, cropH);
 
     stopCamera();
     setScanMode("preview");
@@ -254,27 +333,28 @@ export default function ScanPage() {
     }
   }
 
-  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+  const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > MAX_FILE_SIZE) {
-        toastError("Image is too large. Please upload a file under 5 MB.");
-        e.target.value = "";
-        return;
-      }
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(URL.createObjectURL(file));
-      setScanMode("preview");
-      
-      if (scanType === "text") {
-        runOcr(file);
-      } else {
-        runBarcodeDecode(file);
-      }
+    if (!file) { e.target.value = ""; return; }
+    if (file.size > MAX_FILE_SIZE) {
+      toastError("Image is too large. Please upload a file under 20 MB.");
+      e.target.value = "";
+      return;
     }
+    // Revoke previous blob URL to free memory
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+    setScanMode("preview");
     e.target.value = "";
+
+    if (scanType === "text") {
+      runOcr(file);
+    } else {
+      runBarcodeDecode(file);
+    }
   }
 
   async function handleAdd(e: React.FormEvent) {
@@ -507,7 +587,7 @@ export default function ScanPage() {
                 </button>
                 <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 bg-gray-100 border border-gray-200 rounded-full px-2.5 py-0.5 font-medium">
                   <AppIcon name="warning" size={10} className="text-orange-400" />
-                  Max 5 MB for uploads
+                  Max 20 MB for uploads
                 </span>
               </div>
             )}

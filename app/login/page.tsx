@@ -51,7 +51,7 @@ export default function LoginPage() {
             Join the network of pharmacies working together to ensure medicines reach those who need them before they expire.
           </p>
         </div>
-        <p className="text-green-200 text-sm relative z-10">© 2025 PharmCycle. All rights reserved.</p>
+        <p className="text-green-200 text-sm relative z-10">© 2026 PharmCycle. All rights reserved.</p>
       </div>
 
       <div className="flex-1 flex items-center justify-center p-8 bg-white">

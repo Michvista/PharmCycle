@@ -53,7 +53,7 @@ export default function SignUpPage() {
           </div>
           <p className="text-green-100 text-sm ml-[52px] -mt-1">Share. Save. Save Lives.</p>
         </div>
-        <p className="text-green-200 text-sm relative z-10">© 2025 PharmCycle. All rights reserved.</p>
+        <p className="text-green-200 text-sm relative z-10">© 2026 PharmCycle. All rights reserved.</p>
       </div>
 
       <div className="flex-1 flex items-center justify-center p-8 bg-white overflow-y-auto">
