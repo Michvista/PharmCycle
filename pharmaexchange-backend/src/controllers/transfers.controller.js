@@ -1,4 +1,5 @@
-const prisma = require('../lib/prisma');
+const prisma = require("../lib/prisma");
+const { sendNotification } = require("../lib/notifications");
 
 /**
  * GET /transfers/available
@@ -13,18 +14,24 @@ async function getAvailableTransfers(req, res) {
   const listings = await prisma.transferListing.findMany({
     where: {
       pharmacyId: { not: pharmacyId },
-      status: 'AVAILABLE',
-      ...(city && { pharmacy: { city: { equals: city, mode: 'insensitive' } } }),
-      ...(state && { pharmacy: { state: { equals: state, mode: 'insensitive' } } }),
+      status: "AVAILABLE",
+      ...(city && {
+        pharmacy: { city: { equals: city, mode: "insensitive" } },
+      }),
+      ...(state && {
+        pharmacy: { state: { equals: state, mode: "insensitive" } },
+      }),
       ...(search && {
-        inventoryItem: { medicine: { name: { contains: search, mode: 'insensitive' } } },
+        inventoryItem: {
+          medicine: { name: { contains: search, mode: "insensitive" } },
+        },
       }),
     },
     include: {
       pharmacy: { select: { id: true, name: true, city: true, state: true } },
       inventoryItem: { include: { medicine: true } },
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { createdAt: "desc" },
   });
 
   const cards = listings.map((l) => ({
@@ -36,8 +43,15 @@ async function getAvailableTransfers(req, res) {
     quantity: l.quantity,
     originalPrice: l.inventoryItem.sellingPrice,
     discountPercent: l.discountPercent,
-    discountedPrice: Number((l.inventoryItem.sellingPrice * (1 - l.discountPercent / 100)).toFixed(2)),
-    fromPharmacy: { id: l.pharmacy.id, name: l.pharmacy.name, city: l.pharmacy.city, state: l.pharmacy.state },
+    discountedPrice: Number(
+      (l.inventoryItem.sellingPrice * (1 - l.discountPercent / 100)).toFixed(2),
+    ),
+    fromPharmacy: {
+      id: l.pharmacy.id,
+      name: l.pharmacy.name,
+      city: l.pharmacy.city,
+      state: l.pharmacy.state,
+    },
   }));
 
   res.json({ listings: cards });
@@ -53,14 +67,20 @@ async function createTransferListing(req, res) {
   const { inventoryItemId, quantity, discountPercent } = req.body;
 
   if (!inventoryItemId || !quantity) {
-    return res.status(400).json({ error: 'inventoryItemId and quantity are required' });
+    return res
+      .status(400)
+      .json({ error: "inventoryItemId and quantity are required" });
   }
 
-  const item = await prisma.inventoryItem.findFirst({ where: { id: inventoryItemId, pharmacyId } });
-  if (!item) return res.status(404).json({ error: 'Inventory item not found' });
+  const item = await prisma.inventoryItem.findFirst({
+    where: { id: inventoryItemId, pharmacyId },
+  });
+  if (!item) return res.status(404).json({ error: "Inventory item not found" });
 
   if (quantity > item.quantity) {
-    return res.status(400).json({ error: 'Cannot list more than current stock quantity' });
+    return res
+      .status(400)
+      .json({ error: "Cannot list more than current stock quantity" });
   }
 
   const listing = await prisma.transferListing.create({
@@ -69,7 +89,7 @@ async function createTransferListing(req, res) {
       pharmacyId,
       quantity: Number(quantity),
       discountPercent: Number(discountPercent) || 0,
-      status: 'AVAILABLE',
+      status: "AVAILABLE",
     },
     include: { inventoryItem: { include: { medicine: true } } },
   });
@@ -87,20 +107,25 @@ async function requestTransfer(req, res) {
   const { id: listingId } = req.params;
   const { quantity } = req.body;
 
-  if (!quantity) return res.status(400).json({ error: 'quantity is required' });
+  if (!quantity) return res.status(400).json({ error: "quantity is required" });
 
   const listing = await prisma.transferListing.findUnique({
     where: { id: listingId },
     include: { pharmacy: true, inventoryItem: { include: { medicine: true } } },
   });
 
-  if (!listing) return res.status(404).json({ error: 'Listing not found' });
-  if (listing.status !== 'AVAILABLE') return res.status(400).json({ error: 'Listing is not available' });
+  if (!listing) return res.status(404).json({ error: "Listing not found" });
+  if (listing.status !== "AVAILABLE")
+    return res.status(400).json({ error: "Listing is not available" });
   if (listing.pharmacyId === pharmacyId) {
-    return res.status(400).json({ error: 'You cannot request your own listing' });
+    return res
+      .status(400)
+      .json({ error: "You cannot request your own listing" });
   }
   if (quantity > listing.quantity) {
-    return res.status(400).json({ error: 'Requested quantity exceeds available quantity' });
+    return res
+      .status(400)
+      .json({ error: "Requested quantity exceeds available quantity" });
   }
 
   const request = await prisma.transferRequest.create({
@@ -108,23 +133,44 @@ async function requestTransfer(req, res) {
       listingId,
       requestingPharmacyId: pharmacyId,
       quantity: Number(quantity),
-      status: 'PENDING',
+      status: "PENDING",
     },
   });
 
   // Mark listing PENDING so other pharmacies see it's being negotiated
-  await prisma.transferListing.update({ where: { id: listingId }, data: { status: 'PENDING' } });
+  await prisma.transferListing.update({
+    where: { id: listingId },
+    data: { status: "PENDING" },
+  });
 
   // Alert the listing owner pharmacy
   await prisma.alert.create({
     data: {
       pharmacyId: listing.pharmacyId,
-      type: 'TRANSFER_REQUEST',
+      type: "TRANSFER_REQUEST",
       message: `New transfer request for ${listing.inventoryItem.medicine.name} (${quantity} units)`,
     },
   });
 
+  const listingOwnerAdmin = await prisma.user.findFirst({
+    where: { pharmacyId: listing.pharmacyId, role: "ADMIN" },
+  });
+
+  if (listingOwnerAdmin) {
+    await sendNotification({
+      recipientType: "USER",
+      recipientId: listingOwnerAdmin.id,
+      to: listingOwnerAdmin.email,
+      subject: `New transfer request received`,
+      body: `A new transfer request has been submitted for ${listing.inventoryItem.medicine.name} (${quantity} units).`,
+    });
+  }
+
   res.status(201).json(request);
 }
 
-module.exports = { getAvailableTransfers, createTransferListing, requestTransfer };
+module.exports = {
+  getAvailableTransfers,
+  createTransferListing,
+  requestTransfer,
+};

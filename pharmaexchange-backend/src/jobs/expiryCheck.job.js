@@ -1,6 +1,21 @@
-const cron = require('node-cron');
-const prisma = require('../lib/prisma');
-const { computeStatus } = require('../utils/inventoryStatus');
+const cron = require("node-cron");
+const prisma = require("../lib/prisma");
+const { sendNotification } = require("../lib/notifications");
+const { computeStatus } = require("../utils/inventoryStatus");
+
+async function notifyPharmacyAdmin(pharmacyId, subject, body) {
+  const admin = await prisma.user.findFirst({
+    where: { pharmacyId, role: "ADMIN" },
+  });
+  if (!admin) return;
+  await sendNotification({
+    recipientType: "USER",
+    recipientId: admin.id,
+    to: admin.email,
+    subject,
+    body,
+  });
+}
 
 /**
  * Runs daily (and once immediately on server start) to:
@@ -14,25 +29,33 @@ const { computeStatus } = require('../utils/inventoryStatus');
  * aren't empty, then again live on stage if you want to show it "noticing" change.
  */
 async function runExpiryCheck() {
-  const items = await prisma.inventoryItem.findMany({ include: { medicine: true } });
+  const items = await prisma.inventoryItem.findMany({
+    include: { medicine: true },
+  });
 
   let alertsCreated = 0;
 
   for (const item of items) {
-    const newStatus = computeStatus({ quantity: item.quantity, expiryDate: item.expiryDate });
+    const newStatus = computeStatus({
+      quantity: item.quantity,
+      expiryDate: item.expiryDate,
+    });
 
     if (newStatus !== item.status) {
-      await prisma.inventoryItem.update({ where: { id: item.id }, data: { status: newStatus } });
+      await prisma.inventoryItem.update({
+        where: { id: item.id },
+        data: { status: newStatus },
+      });
     }
 
     // Create alerts for risky items (on status change OR if no recent alert exists yet)
     const label = `${item.medicine.name} ${item.medicine.strength}`;
 
-    if (newStatus === 'NEAR_EXPIRY') {
+    if (newStatus === "NEAR_EXPIRY") {
       const exists = await prisma.alert.findFirst({
         where: {
           pharmacyId: item.pharmacyId,
-          type: 'NEAR_EXPIRY',
+          type: "NEAR_EXPIRY",
           message: { contains: item.batchNumber },
           createdAt: { gte: new Date(Date.now() - 7 * 86400000) },
         },
@@ -41,19 +64,24 @@ async function runExpiryCheck() {
         await prisma.alert.create({
           data: {
             pharmacyId: item.pharmacyId,
-            type: 'NEAR_EXPIRY',
+            type: "NEAR_EXPIRY",
             message: `${label} (batch ${item.batchNumber}) is nearing expiry.`,
           },
         });
+        await notifyPharmacyAdmin(
+          item.pharmacyId,
+          `Alert: ${label} nearing expiry`,
+          `${label} (batch ${item.batchNumber}) is nearing expiry.`,
+        );
         alertsCreated++;
       }
     }
 
-    if (newStatus === 'LOW_STOCK') {
+    if (newStatus === "LOW_STOCK") {
       const exists = await prisma.alert.findFirst({
         where: {
           pharmacyId: item.pharmacyId,
-          type: 'LOW_STOCK',
+          type: "LOW_STOCK",
           message: { contains: label },
           createdAt: { gte: new Date(Date.now() - 7 * 86400000) },
         },
@@ -62,19 +90,24 @@ async function runExpiryCheck() {
         await prisma.alert.create({
           data: {
             pharmacyId: item.pharmacyId,
-            type: 'LOW_STOCK',
+            type: "LOW_STOCK",
             message: `${label} stock is running low (${item.quantity} units left).`,
           },
         });
+        await notifyPharmacyAdmin(
+          item.pharmacyId,
+          `Alert: ${label} low stock`,
+          `${label} stock is running low (${item.quantity} units left).`,
+        );
         alertsCreated++;
       }
     }
 
-    if (newStatus === 'OUT_OF_STOCK') {
+    if (newStatus === "OUT_OF_STOCK") {
       const exists = await prisma.alert.findFirst({
         where: {
           pharmacyId: item.pharmacyId,
-          type: 'OUT_OF_STOCK',
+          type: "OUT_OF_STOCK",
           message: { contains: label },
           createdAt: { gte: new Date(Date.now() - 7 * 86400000) },
         },
@@ -83,25 +116,36 @@ async function runExpiryCheck() {
         await prisma.alert.create({
           data: {
             pharmacyId: item.pharmacyId,
-            type: 'OUT_OF_STOCK',
+            type: "OUT_OF_STOCK",
             message: `${label} is now out of stock.`,
           },
         });
+        await notifyPharmacyAdmin(
+          item.pharmacyId,
+          `Alert: ${label} is out of stock`,
+          `${label} is now out of stock.`,
+        );
         alertsCreated++;
       }
     }
   }
 
-  console.log(`[expiryCheck] checked ${items.length} items, ${alertsCreated} new alerts created`);
+  console.log(
+    `[expiryCheck] checked ${items.length} items, ${alertsCreated} new alerts created`,
+  );
 }
 
 function startExpiryCheckJob() {
   // Run once on boot so the demo has fresh data immediately
-  runExpiryCheck().catch((err) => console.error('[expiryCheck] initial run failed:', err));
+  runExpiryCheck().catch((err) =>
+    console.error("[expiryCheck] initial run failed:", err),
+  );
 
   // Then daily at 1am
-  cron.schedule('0 1 * * *', () => {
-    runExpiryCheck().catch((err) => console.error('[expiryCheck] scheduled run failed:', err));
+  cron.schedule("0 1 * * *", () => {
+    runExpiryCheck().catch((err) =>
+      console.error("[expiryCheck] scheduled run failed:", err),
+    );
   });
 }
 
