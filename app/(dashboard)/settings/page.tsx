@@ -24,7 +24,7 @@ export default function SettingsPage() {
     aiDigest: false,
     network: true,
   });
-  const TOGGLE_STORAGE_KEY = "pharmcycle_notification_toggles";
+  const TOGGLE_STORAGE_KEY = "PharmaCycle.AI_notification_toggles";
 
   useEffect(() => {
     if (typeof window !== "undefined") {

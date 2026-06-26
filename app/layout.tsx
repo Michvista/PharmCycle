@@ -9,9 +9,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "PharmCycle - Share. Save. Save Lives.",
+  title: "PharmaCycle.AI - Share. Save. Save Lives.",
   description:
-    "PharmCycle helps pharmacies reduce waste, share excess inventory, and save lives through smart medicine transfers.",
+    "PharmaCycle.AI helps pharmacies reduce waste, share excess inventory, and save lives through smart medicine transfers.",
 };
 
 export default function RootLayout({

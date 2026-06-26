@@ -10,18 +10,18 @@ export class ApiError extends Error {
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("pharmcycle_token");
+  return localStorage.getItem("PharmaCycle.AI_token");
 }
 
 export function setToken(token: string | null) {
   if (typeof window === "undefined") return;
-  if (token) localStorage.setItem("pharmcycle_token", token);
-  else localStorage.removeItem("pharmcycle_token");
+  if (token) localStorage.setItem("PharmaCycle.AI_token", token);
+  else localStorage.removeItem("PharmaCycle.AI_token");
 }
 
 export function getStoredAuth() {
   if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem("pharmcycle_auth");
+  const raw = localStorage.getItem("PharmaCycle.AI_auth");
   if (!raw) return null;
   try {
     return JSON.parse(raw) as {
@@ -45,10 +45,10 @@ export function getStoredAuth() {
 export function setStoredAuth(data: ReturnType<typeof getStoredAuth>) {
   if (typeof window === "undefined") return;
   if (data) {
-    localStorage.setItem("pharmcycle_auth", JSON.stringify(data));
+    localStorage.setItem("PharmaCycle.AI_auth", JSON.stringify(data));
     setToken(data.token);
   } else {
-    localStorage.removeItem("pharmcycle_auth");
+    localStorage.removeItem("PharmaCycle.AI_auth");
     setToken(null);
   }
 }

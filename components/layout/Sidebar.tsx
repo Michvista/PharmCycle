@@ -16,13 +16,33 @@ const navItems: {
   badgeKey?: "alerts" | "requests";
 }[] = [
   { label: "Dashboard", href: "/dashboard", icon: "dashboard" },
-  { label: "Inventory", href: "/inventory", icon: "inventory", pharmacyOnly: true },
-  { label: "AI Insights", href: "/ai-insights", icon: "insights", pharmacyOnly: true },
+  {
+    label: "Inventory",
+    href: "/inventory",
+    icon: "inventory",
+    pharmacyOnly: true,
+  },
+  {
+    label: "AI Insights",
+    href: "/ai-insights",
+    icon: "insights",
+    pharmacyOnly: true,
+  },
   { label: "Transfers", href: "/transfers", icon: "transfers" },
-  { label: "Transfer Requests", href: "/transfer-requests", icon: "requests", badgeKey: "requests" },
+  {
+    label: "Transfer Requests",
+    href: "/transfer-requests",
+    icon: "requests",
+    badgeKey: "requests",
+  },
   { label: "Alerts", href: "/alerts", icon: "alerts", badgeKey: "alerts" },
   { label: "Scan Medicines", href: "/scan", icon: "scan", pharmacyOnly: true },
-  { label: "Analysis", href: "/analysis", icon: "analysis", pharmacyOnly: true },
+  {
+    label: "Analysis",
+    href: "/analysis",
+    icon: "analysis",
+    pharmacyOnly: true,
+  },
   { label: "Reports", href: "/reports", icon: "reports", pharmacyOnly: true },
   { label: "Settings", href: "/settings", icon: "settings" },
   { label: "Help & Support", href: "/help", icon: "help" },
@@ -33,7 +53,10 @@ interface SidebarProps {
   onMobileClose?: () => void;
 }
 
-export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
+export default function Sidebar({
+  mobileOpen = false,
+  onMobileClose,
+}: SidebarProps) {
   const pathname = usePathname();
   const { auth, logout } = useAuth();
   const [badges, setBadges] = useState({ alerts: 0, requests: 0 });
@@ -54,7 +77,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   // Close mobile sidebar on route change
   useEffect(() => {
     onMobileClose?.();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   const pharmacy = auth?.accountType === "pharmacy" ? auth.pharmacy : null;
@@ -68,16 +91,19 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
             <LogoIcon size={20} />
           </div>
           <div>
-            <div className="font-bold text-gray-900 text-[15px] leading-tight">PharmCycle</div>
-            <div className="text-[11px] text-gray-400 leading-tight">Share. Save. Save Lives.</div>
+            <div className="font-bold text-gray-900 text-[15px] leading-tight">
+              PharmaCycle.AI
+            </div>
+            <div className="text-[11px] text-gray-400 leading-tight">
+              Share. Save. Save Lives.
+            </div>
           </div>
         </div>
         {/* Close button — mobile only */}
         <button
           onClick={onMobileClose}
           className="lg:hidden p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer transition-colors"
-          aria-label="Close menu"
-        >
+          aria-label="Close menu">
           <AppIcon name="cancel" size={18} />
         </button>
       </div>
@@ -87,14 +113,27 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
           const isActive = pathname === item.href;
           const badge = item.badgeKey ? badges[item.badgeKey] : 0;
           return (
-            <Link key={item.label} href={item.href}
+            <Link
+              key={item.label}
+              href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group relative
                 ${isActive ? "bg-green-50 text-green-700" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}>
-              {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-green-600 rounded-r-full" />}
-              <AppIcon name={item.icon} size={18} className={isActive ? "text-green-600" : "text-gray-400 group-hover:text-gray-600"} />
+              {isActive && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-green-600 rounded-r-full" />
+              )}
+              <AppIcon
+                name={item.icon}
+                size={18}
+                className={
+                  isActive
+                    ? "text-green-600"
+                    : "text-gray-400 group-hover:text-gray-600"
+                }
+              />
               <span className="flex-1">{item.label}</span>
               {badge > 0 && (
-                <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center
+                <span
+                  className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center
                   ${item.icon === "alerts" ? "bg-red-100 text-red-600" : "bg-green-100 text-green-700"}`}>
                   {badge}
                 </span>
@@ -112,11 +151,20 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium text-gray-900 truncate flex items-center gap-1">
               {pharmacy?.name || "Pharmacy"}
-              <AppIcon name="verified" size={14} className="text-green-600 shrink-0" />
+              <AppIcon
+                name="verified"
+                size={14}
+                className="text-green-600 shrink-0"
+              />
             </div>
-            <div className="text-[11px] text-gray-400">{user?.role || "Pharmacist"}</div>
+            <div className="text-[11px] text-gray-400">
+              {user?.role || "Pharmacist"}
+            </div>
           </div>
-          <button onClick={logout} title="Sign out" className="text-gray-400 hover:text-gray-600 cursor-pointer">
+          <button
+            onClick={logout}
+            title="Sign out"
+            className="text-gray-400 hover:text-gray-600 cursor-pointer">
             <AppIcon name="cancel" size={16} />
           </button>
         </div>
@@ -140,9 +188,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
             onClick={onMobileClose}
           />
           {/* Drawer panel */}
-          <div className="relative flex h-full">
-            {sidebarContent}
-          </div>
+          <div className="relative flex h-full">{sidebarContent}</div>
         </div>
       )}
     </>

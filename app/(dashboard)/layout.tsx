@@ -47,7 +47,7 @@ export default function DashboardLayout({
                 <LogoIcon size={16} />
               </div>
               <span className="font-bold text-gray-900 text-sm">
-                PharmCycle
+                PharmaCycle.AI
               </span>
             </div>
             {/* Spacer to keep logo centered */}
