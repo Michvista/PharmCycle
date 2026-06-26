@@ -8,7 +8,7 @@ import DonutChart from "@/components/ui/DonutChart";
 import AppIcon from "@/components/ui/AppIcon";
 import { useToast } from "@/contexts/ToastContext";
 import { transferRequestsApi, type TransferRequest } from "@/lib/api";
-import { formatDate, transferStatusLabel, transferStatusToBadge } from "@/lib/format";
+import { formatDate, formatNaira, transferStatusLabel, transferStatusToBadge } from "@/lib/format";
 
 export default function TransferRequestsPage() {
   const [direction, setDirection] = useState<"incoming" | "outgoing">("incoming");
@@ -92,6 +92,15 @@ export default function TransferRequestsPage() {
                           <h4 className="text-sm font-semibold text-gray-900">{med?.name || "Medicine"} {med?.strength}</h4>
                           <p className="text-xs text-gray-400">{partner?.name} · {partner?.city}, {partner?.state}</p>
                           <p className="text-xs text-gray-500 mt-1">{req.quantity} units · {formatDate(req.createdAt)}</p>
+                          <p className="text-xs text-gray-500 mt-2">
+                            Unit price: <span className="font-semibold text-gray-900">{formatNaira(req.listing?.inventoryItem?.sellingPrice ?? 0)}</span>
+                            {req.listing?.discountPercent ? (
+                              <span className="ml-2 text-xs text-red-500">-{req.listing.discountPercent}%</span>
+                            ) : null}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Total: <span className="font-semibold text-gray-900">{formatNaira((req.listing?.inventoryItem?.sellingPrice ?? 0) * req.quantity)}</span>
+                          </p>
                         </div>
                         <Badge variant={transferStatusToBadge(req.status)}>{transferStatusLabel(req.status)}</Badge>
                       </div>

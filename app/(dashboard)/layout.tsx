@@ -15,13 +15,13 @@ export default function DashboardLayout({
 
   return (
     <AuthGuard>
-      <div className="flex min-h-screen bg-gray-50">
+      <div className="flex h-screen bg-gray-50 overflow-hidden">
         <Sidebar
           mobileOpen={sidebarOpen}
           onMobileClose={() => setSidebarOpen(false)}
         />
 
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Mobile top nav bar */}
           <div className="lg:hidden h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 shrink-0 sticky top-0 z-40">
             <button
@@ -46,7 +46,9 @@ export default function DashboardLayout({
             <div className="w-9" />
           </div>
 
-          {children}
+          <div className="flex-1 overflow-y-auto">
+            {children}
+          </div>
         </div>
       </div>
     </AuthGuard>

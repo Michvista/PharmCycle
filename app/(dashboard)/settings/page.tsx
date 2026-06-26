@@ -20,8 +20,20 @@ export default function SettingsPage() {
   const [toggles, setToggles] = useState({
     expiry: true, transfers: true, lowStock: true, aiDigest: false, network: true,
   });
+  const TOGGLE_STORAGE_KEY = "pharmcycle_notification_toggles";
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem(TOGGLE_STORAGE_KEY);
+      if (saved) {
+        try {
+          setToggles(JSON.parse(saved));
+        } catch {
+          // ignore invalid saved state
+        }
+      }
+    }
+
     pharmacyApi.getProfile().then((res) => {
       setPharmacyName(res.pharmacy.name);
       setAddress(res.pharmacy.address || "");
@@ -31,6 +43,12 @@ export default function SettingsPage() {
       setEmail(res.user.email);
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(TOGGLE_STORAGE_KEY, JSON.stringify(toggles));
+    }
+  }, [toggles]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();

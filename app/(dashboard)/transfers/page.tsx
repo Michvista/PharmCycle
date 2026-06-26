@@ -13,9 +13,12 @@ export default function TransfersPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState<string | null>(null);
+  const [requestModal, setRequestModal] = useState<{ listing: TransferListing; quantity: string } | null>(null);
+  const [submittingRequest, setSubmittingRequest] = useState(false);
   const [showOffer, setShowOffer] = useState(false);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [offerForm, setOfferForm] = useState({ inventoryItemId: "", quantity: "", discountPercent: "10" });
+  const [offerSaving, setOfferSaving] = useState(false);
   const { success: toastSuccess, error: toastError } = useToast();
 
   function load() {
@@ -27,17 +30,30 @@ export default function TransfersPage() {
 
   useEffect(() => { load(); }, []);
 
-  async function handleRequest(listingId: string, maxQty: number) {
-    const qty = prompt(`How many units? (max ${maxQty})`, String(Math.min(maxQty, 10)));
-    if (!qty) return;
-    setRequesting(listingId);
+  function openRequestModal(listing: TransferListing) {
+    setRequestModal({ listing, quantity: "1" });
+  }
+
+  async function handleRequestSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!requestModal) return;
+    const qty = Number(requestModal.quantity);
+    if (!qty || qty < 1 || qty > requestModal.listing.quantity) {
+      toastError(`Please enter a quantity between 1 and ${requestModal.listing.quantity}`);
+      return;
+    }
+
+    setSubmittingRequest(true);
+    setRequesting(requestModal.listing.listingId);
     try {
-      await transfersApi.request(listingId, Number(qty));
+      await transfersApi.request(requestModal.listing.listingId, qty);
       toastSuccess("Transfer request sent!");
+      setRequestModal(null);
       load();
     } catch (e) {
       toastError(e instanceof Error ? e.message : "Request failed");
     } finally {
+      setSubmittingRequest(false);
       setRequesting(null);
     }
   }
@@ -50,12 +66,17 @@ export default function TransfersPage() {
 
   async function handleOffer(e: React.FormEvent) {
     e.preventDefault();
+    setOfferSaving(true);
     try {
       await transfersApi.createListing(offerForm.inventoryItemId, Number(offerForm.quantity), Number(offerForm.discountPercent));
       setShowOffer(false);
+      setOfferForm({ inventoryItemId: "", quantity: "", discountPercent: "10" });
       toastSuccess("Medicine listed for transfer!");
+      load();
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Failed to create listing");
+    } finally {
+      setOfferSaving(false);
     }
   }
 
@@ -108,15 +129,19 @@ export default function TransfersPage() {
                   <div className="flex-1 min-w-[200px]">
                     <h4 className="text-sm font-semibold text-gray-900">{med.medicineName} {med.strength}</h4>
                     <p className="text-xs text-gray-400">{med.dosageForm} · {med.fromPharmacy.name}, {med.fromPharmacy.city}</p>
+                    <div className="text-xs text-gray-500 mt-1">{med.quantity} units available</div>
                   </div>
-                  <div className="text-sm text-gray-600">{med.quantity} units</div>
-                  <div className="text-sm font-semibold text-gray-900">
-                    {formatNaira(med.discountedPrice)}
-                    <span className="text-red-500 text-xs ml-1">-{med.discountPercent}%</span>
+                  <div className="text-right min-w-[120px]">
+                    <div className="text-sm font-semibold text-gray-900">{formatNaira(med.discountedPrice)} each</div>
+                    {med.discountPercent > 0 ? (
+                      <div className="text-xs text-gray-400">Original {formatNaira(med.originalPrice)}</div>
+                    ) : (
+                      <div className="text-xs text-gray-400">No discount</div>
+                    )}
                   </div>
                   <Badge variant="excess-stock">Available</Badge>
                   <button
-                    onClick={() => handleRequest(med.listingId, med.quantity)}
+                    onClick={() => openRequestModal(med)}
                     disabled={requesting === med.listingId}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-50"
                   >
@@ -128,6 +153,55 @@ export default function TransfersPage() {
           )}
         </div>
       </main>
+
+      {requestModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <form onSubmit={handleRequestSubmit} className="bg-white rounded-xl p-6 w-full max-w-md space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Request Transfer</h3>
+                <p className="text-sm text-gray-500">{requestModal.listing.medicineName} {requestModal.listing.strength} from {requestModal.listing.fromPharmacy.name}</p>
+              </div>
+              <button type="button" onClick={() => setRequestModal(null)} className="text-gray-400 hover:text-gray-700">Cancel</button>
+            </div>
+
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-700">
+              <div className="flex items-center justify-between">
+                <span>Unit price</span>
+                <span className="font-semibold text-gray-900">{formatNaira(requestModal.listing.discountedPrice)}</span>
+              </div>
+              <div className="flex items-center justify-between mt-2">
+                <span>Available</span>
+                <span className="text-gray-600">{requestModal.listing.quantity} units</span>
+              </div>
+            </div>
+
+            <label className="block text-sm font-medium text-gray-700">Request quantity</label>
+            <input
+              type="number"
+              min={1}
+              max={requestModal.listing.quantity}
+              value={requestModal.quantity}
+              onChange={(e) => setRequestModal({ ...requestModal, quantity: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+            />
+
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-700">
+              <div className="flex items-center justify-between">
+                <span>Total cost</span>
+                <span className="font-semibold text-gray-900">{formatNaira(requestModal.listing.discountedPrice * Number(requestModal.quantity || 0))}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setRequestModal(null)} className="flex-1 py-2 border rounded-lg text-sm cursor-pointer">Cancel</button>
+              <button type="submit" disabled={submittingRequest} className="flex-1 py-2 bg-green-600 text-white rounded-lg text-sm cursor-pointer disabled:opacity-50">
+                {submittingRequest ? "Requesting..." : "Submit Request"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {showOffer && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
@@ -148,11 +222,16 @@ export default function TransfersPage() {
               className="w-full px-3 py-2 border rounded-lg text-sm" />
             <div className="flex gap-2">
               <button type="button" onClick={() => setShowOffer(false)} className="flex-1 py-2 border rounded-lg text-sm cursor-pointer">Cancel</button>
-              <button type="submit" className="flex-1 py-2 bg-purple-600 text-white rounded-lg text-sm cursor-pointer">List</button>
+              <button type="submit" disabled={offerSaving} className="flex-1 py-2 bg-purple-600 text-white rounded-lg text-sm cursor-pointer disabled:opacity-50">
+                {offerSaving ? "Listing..." : "List"}
+              </button>
             </div>
           </form>
         </div>
       )}
+    </>
+  );
+}
     </>
   );
 }

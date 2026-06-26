@@ -33,7 +33,12 @@ async function getTransferRequests(req, res) {
       },
       include: {
         requestingPharmacy: { select: { id: true, name: true, city: true, state: true } },
-        listing: { include: { inventoryItem: { include: { medicine: true } } } },
+        listing: {
+          include: {
+            inventoryItem: { include: { medicine: true } },
+            pharmacy: { select: { id: true, name: true, city: true, state: true } },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });

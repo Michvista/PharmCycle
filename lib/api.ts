@@ -192,7 +192,8 @@ export type TransferRequest = {
   createdAt: string;
   listing?: {
     pharmacy?: { id: string; name: string; city: string; state: string };
-    inventoryItem?: { medicine: { name: string; dosageForm: string; strength: string }; expiryDate?: string };
+    inventoryItem?: { medicine: { name: string; dosageForm: string; strength: string }; sellingPrice: number; costPrice: number };
+    discountPercent?: number;
   };
   requestingPharmacy?: { id: string; name: string; city: string; state: string };
 };

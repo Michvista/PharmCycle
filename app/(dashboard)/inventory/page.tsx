@@ -19,6 +19,7 @@ export default function InventoryPage() {
   const [stats, setStats] = useState({ total: 0, lowStock: 0, nearExpiry: 0, expired: 0 });
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     medicineName: "", category: "analgesic", dosageForm: "Tablet", strength: "500mg",
     quantity: "", costPrice: "", sellingPrice: "", batchNumber: "", expiryDate: "",
@@ -54,6 +55,7 @@ export default function InventoryPage() {
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
+    setSaving(true);
     try {
       await inventoryApi.create({
         medicineName: form.medicineName,
@@ -72,6 +74,8 @@ export default function InventoryPage() {
       load();
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Failed to add item");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -186,7 +190,7 @@ export default function InventoryPage() {
               className="w-full px-3 py-2 border rounded-lg text-sm" />
             <div className="flex gap-2 pt-2">
               <button type="button" onClick={() => setShowAdd(false)} className="flex-1 py-2 border rounded-lg text-sm cursor-pointer">Cancel</button>
-              <button type="submit" className="flex-1 py-2 bg-green-600 text-white rounded-lg text-sm cursor-pointer">Add</button>
+              <button type="submit" disabled={saving} className="flex-1 py-2 bg-green-600 text-white rounded-lg text-sm cursor-pointer disabled:opacity-50">{saving ? "Adding..." : "Add"}</button>
             </div>
           </form>
         </div>
