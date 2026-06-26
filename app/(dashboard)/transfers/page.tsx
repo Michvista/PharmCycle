@@ -33,6 +33,19 @@ export default function TransfersPage() {
   const [offerSaving, setOfferSaving] = useState(false);
   const { success: toastSuccess, error: toastError } = useToast();
 
+  function isExpiredInventoryItem(item: InventoryItem) {
+    const status = item.status?.toUpperCase();
+    if (status === "EXPIRED") return true;
+
+    if (!item.expiryDate) return false;
+    const expiry = new Date(item.expiryDate);
+    if (Number.isNaN(expiry.getTime())) return false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return expiry < today;
+  }
+
   function load() {
     setLoading(true);
     transfersApi
@@ -77,17 +90,49 @@ export default function TransfersPage() {
 
   async function openOfferModal() {
     const res = await inventoryApi.list({ limit: 50 });
-    setInventory(res.items.filter((i) => i.quantity > 0));
+    const eligibleInventory = res.items.filter(
+      (i) => i.quantity > 0 && !isExpiredInventoryItem(i),
+    );
+    setInventory(eligibleInventory);
+    setOfferForm((prev) => ({
+      ...prev,
+      inventoryItemId:
+        prev.inventoryItemId &&
+        eligibleInventory.some((i) => i.id === prev.inventoryItemId)
+          ? prev.inventoryItemId
+          : "",
+    }));
     setShowOffer(true);
   }
 
   async function handleOffer(e: React.FormEvent) {
     e.preventDefault();
+    const selectedItem = inventory.find(
+      (item) => item.id === offerForm.inventoryItemId,
+    );
+    if (!selectedItem) {
+      toastError("Please select an eligible inventory item.");
+      return;
+    }
+
+    if (isExpiredInventoryItem(selectedItem)) {
+      toastError("Expired items cannot be listed for transfer.");
+      return;
+    }
+
+    const qty = Number(offerForm.quantity);
+    if (!qty || qty < 1 || qty > selectedItem.quantity) {
+      toastError(
+        `Please enter a quantity between 1 and ${selectedItem.quantity}`,
+      );
+      return;
+    }
+
     setOfferSaving(true);
     try {
       await transfersApi.createListing(
         offerForm.inventoryItemId,
-        Number(offerForm.quantity),
+        qty,
         Number(offerForm.discountPercent),
       );
       setShowOffer(false);
@@ -314,17 +359,25 @@ export default function TransfersPage() {
             <select
               required
               value={offerForm.inventoryItemId}
+              disabled={inventory.length === 0}
               onChange={(e) =>
                 setOfferForm({ ...offerForm, inventoryItemId: e.target.value })
               }
-              className="w-full px-3 py-2 border rounded-lg text-sm">
-              <option value="">Select inventory item</option>
+              className="w-full px-3 py-2 border rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed">
+              <option value="">
+                {inventory.length === 0
+                  ? "No eligible inventory items"
+                  : "Select inventory item"}
+              </option>
               {inventory.map((i) => (
                 <option key={i.id} value={i.id}>
                   {i.medicine.name} — {i.quantity} units
                 </option>
               ))}
             </select>
+            <p className="text-xs text-gray-500">
+              Expired items are hidden automatically from the list.
+            </p>
             <input
               required
               type="number"
@@ -353,7 +406,7 @@ export default function TransfersPage() {
               </button>
               <button
                 type="submit"
-                disabled={offerSaving}
+                disabled={offerSaving || inventory.length === 0}
                 className="flex-1 py-2 bg-purple-600 text-white rounded-lg text-sm cursor-pointer disabled:opacity-50">
                 {offerSaving ? "Listing..." : "List"}
               </button>
