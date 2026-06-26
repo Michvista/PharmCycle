@@ -27,10 +27,16 @@ export default function DashboardLayout({
             <button
               onClick={() => setSidebarOpen(true)}
               className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 cursor-pointer transition-colors"
-              aria-label="Open menu"
-            >
+              aria-label="Open menu">
               {/* Hamburger icon — three lines */}
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round">
                 <line x1="3" y1="5" x2="17" y2="5" />
                 <line x1="3" y1="10" x2="17" y2="10" />
                 <line x1="3" y1="15" x2="17" y2="15" />
@@ -40,15 +46,15 @@ export default function DashboardLayout({
               <div className="w-7 h-7 bg-green-600 rounded-lg flex items-center justify-center text-white">
                 <LogoIcon size={16} />
               </div>
-              <span className="font-bold text-gray-900 text-sm">PharmCycle</span>
+              <span className="font-bold text-gray-900 text-sm">
+                PharmCycle
+              </span>
             </div>
             {/* Spacer to keep logo centered */}
             <div className="w-9" />
           </div>
 
-          <div className="flex-1 overflow-y-auto">
-            {children}
-          </div>
+          <div className="flex-1 overflow-y-auto">{children}</div>
         </div>
       </div>
     </AuthGuard>

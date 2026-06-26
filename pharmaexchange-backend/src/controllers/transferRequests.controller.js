@@ -1,5 +1,5 @@
-const prisma = require('../lib/prisma');
-const { sendNotification } = require('../lib/notifications');
+const prisma = require("../lib/prisma");
+const { sendNotification } = require("../lib/notifications");
 
 /**
  * GET /transfer-requests?direction=incoming|outgoing
@@ -8,22 +8,24 @@ const { sendNotification } = require('../lib/notifications');
  */
 async function getTransferRequests(req, res) {
   const { pharmacyId } = req.user;
-  const { direction = 'incoming', status } = req.query;
+  const { direction = "incoming", status } = req.query;
 
   let requests;
 
-  if (direction === 'outgoing') {
+  if (direction === "outgoing") {
     requests = await prisma.transferRequest.findMany({
       where: { requestingPharmacyId: pharmacyId, ...(status && { status }) },
       include: {
         listing: {
           include: {
-            pharmacy: { select: { id: true, name: true, city: true, state: true } },
+            pharmacy: {
+              select: { id: true, name: true, city: true, state: true },
+            },
             inventoryItem: { include: { medicine: true } },
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   } else {
     requests = await prisma.transferRequest.findMany({
@@ -32,15 +34,19 @@ async function getTransferRequests(req, res) {
         listing: { pharmacyId },
       },
       include: {
-        requestingPharmacy: { select: { id: true, name: true, city: true, state: true } },
+        requestingPharmacy: {
+          select: { id: true, name: true, city: true, state: true },
+        },
         listing: {
           include: {
             inventoryItem: { include: { medicine: true } },
-            pharmacy: { select: { id: true, name: true, city: true, state: true } },
+            pharmacy: {
+              select: { id: true, name: true, city: true, state: true },
+            },
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
@@ -57,8 +63,10 @@ async function updateTransferRequest(req, res) {
   const { id } = req.params;
   const { action } = req.body;
 
-  if (!['accept', 'reject', 'complete'].includes(action)) {
-    return res.status(400).json({ error: "action must be 'accept', 'reject', or 'complete'" });
+  if (!["accept", "reject", "complete"].includes(action)) {
+    return res
+      .status(400)
+      .json({ error: "action must be 'accept', 'reject', or 'complete'" });
   }
 
   const request = await prisma.transferRequest.findUnique({
@@ -69,18 +77,24 @@ async function updateTransferRequest(req, res) {
     },
   });
 
-  if (!request) return res.status(404).json({ error: 'Transfer request not found' });
+  if (!request)
+    return res.status(404).json({ error: "Transfer request not found" });
   if (request.listing.pharmacyId !== pharmacyId) {
-    return res.status(403).json({ error: 'You do not own this listing' });
+    return res.status(403).json({ error: "You do not own this listing" });
   }
-  if (request.status !== 'PENDING' && !(action === 'complete' && request.status === 'ACCEPTED')) {
-    return res.status(400).json({ error: 'This request cannot be updated in its current state' });
+  if (
+    request.status !== "PENDING" &&
+    !(action === "complete" && request.status === "ACCEPTED")
+  ) {
+    return res
+      .status(400)
+      .json({ error: "This request cannot be updated in its current state" });
   }
 
   let newStatus;
-  if (action === 'accept') newStatus = 'ACCEPTED';
-  else if (action === 'reject') newStatus = 'REJECTED';
-  else newStatus = 'COMPLETED';
+  if (action === "accept") newStatus = "ACCEPTED";
+  else if (action === "reject") newStatus = "REJECTED";
+  else newStatus = "COMPLETED";
 
   const updated = await prisma.$transaction(async (tx) => {
     const updatedRequest = await tx.transferRequest.update({
@@ -88,24 +102,24 @@ async function updateTransferRequest(req, res) {
       data: { status: newStatus },
     });
 
-    if (action === 'accept') {
+    if (action === "accept") {
       await tx.inventoryItem.update({
         where: { id: request.listing.inventoryItemId },
         data: { quantity: { decrement: request.quantity } },
       });
       await tx.transferListing.update({
         where: { id: request.listingId },
-        data: { status: 'PENDING' },
+        data: { status: "PENDING" },
       });
-    } else if (action === 'reject') {
+    } else if (action === "reject") {
       await tx.transferListing.update({
         where: { id: request.listingId },
-        data: { status: 'AVAILABLE' },
+        data: { status: "AVAILABLE" },
       });
-    } else if (action === 'complete') {
+    } else if (action === "complete") {
       await tx.transferListing.update({
         where: { id: request.listingId },
-        data: { status: 'COMPLETED' },
+        data: { status: "COMPLETED" },
       });
     }
 
@@ -114,12 +128,12 @@ async function updateTransferRequest(req, res) {
 
   // Notify the requesting pharmacy's admin user (best-effort, non-blocking on failure)
   const requestingAdmin = await prisma.user.findFirst({
-    where: { pharmacyId: request.requestingPharmacyId, role: 'ADMIN' },
+    where: { pharmacyId: request.requestingPharmacyId, role: "ADMIN" },
   });
 
   if (requestingAdmin) {
     await sendNotification({
-      recipientType: 'USER',
+      recipientType: "USER",
       recipientId: requestingAdmin.id,
       to: requestingAdmin.email,
       subject: `Transfer request ${newStatus.toLowerCase()}`,
@@ -134,21 +148,24 @@ async function getTransferRequestSummary(req, res) {
   const { pharmacyId } = req.user;
 
   const [incoming, outgoing, byStatus] = await Promise.all([
-    prisma.transferRequest.count({ where: { listing: { pharmacyId }, status: 'PENDING' } }),
-    prisma.transferRequest.count({ where: { requestingPharmacyId: pharmacyId } }),
+    prisma.transferRequest.count({
+      where: { listing: { pharmacyId }, status: "PENDING" },
+    }),
+    prisma.transferRequest.count({
+      where: { requestingPharmacyId: pharmacyId },
+    }),
     prisma.transferRequest.groupBy({
-      by: ['status'],
+      by: ["status"],
       where: {
-        OR: [
-          { requestingPharmacyId: pharmacyId },
-          { listing: { pharmacyId } },
-        ],
+        OR: [{ requestingPharmacyId: pharmacyId }, { listing: { pharmacyId } }],
       },
       _count: { _all: true },
     }),
   ]);
 
-  const statusMap = Object.fromEntries(byStatus.map((s) => [s.status, s._count._all]));
+  const statusMap = Object.fromEntries(
+    byStatus.map((s) => [s.status, s._count._all]),
+  );
 
   res.json({
     incomingPending: incoming,
@@ -161,4 +178,8 @@ async function getTransferRequestSummary(req, res) {
   });
 }
 
-module.exports = { getTransferRequests, updateTransferRequest, getTransferRequestSummary };
+module.exports = {
+  getTransferRequests,
+  updateTransferRequest,
+  getTransferRequestSummary,
+};
