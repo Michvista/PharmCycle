@@ -30,6 +30,7 @@ import {
   HelpCircleIcon,
   Hospital01Icon,
   Medicine01Icon,
+  LockIcon,
   Notification01Icon,
   Package01Icon,
   PillIcon,
@@ -87,7 +88,8 @@ export type AppIconName =
   | "clock"
   | "download"
   | "filter"
-  | "users";
+  | "users"
+  | "lock";
 
 const iconMap: Record<AppIconName, IconSvgElement> = {
   dashboard: DashboardSquare01Icon,
@@ -133,6 +135,7 @@ const iconMap: Record<AppIconName, IconSvgElement> = {
   download: Download01Icon,
   filter: FilterIcon,
   users: UserGroupIcon,
+  lock: LockIcon,
 };
 
 export type IconProps = {
@@ -218,6 +221,7 @@ export {
   HelpCircleIcon,
   Hospital01Icon,
   Medicine01Icon,
+  LockIcon,
   Notification01Icon,
   Package01Icon,
   PillIcon,

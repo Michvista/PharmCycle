@@ -66,6 +66,11 @@ enum NotificationStatus {
   FAILED
 }
 
+enum PasswordResetAccountType {
+  PHARMACY
+  CONSUMER
+}
+
 // ──────────────────────────────────────────
 // CORE ENTITIES
 // ──────────────────────────────────────────
@@ -117,6 +122,19 @@ model Consumer {
   lat       Float?
   lng       Float?
   createdAt DateTime @default(now())
+}
+
+model PasswordResetToken {
+  id         String                   @id @default(uuid())
+  accountType PasswordResetAccountType
+  email      String
+  tokenHash  String                   @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime                 @default(now())
+
+  @@index([email])
+  @@index([accountType, expiresAt])
 }
 
 model Medicine {

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import AppIcon, { LogoIcon } from "@/components/ui/AppIcon";
+import { LogoIcon } from "@/components/ui/AppIcon";
+import BrandWordmark from "@/components/ui/BrandWordmark";
 import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/api";
 import { parseLocation } from "@/lib/format";
@@ -14,6 +15,7 @@ export default function SignUpPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pharmacyName, setPharmacyName] = useState("");
+  const [pcnLicenseNumber, setPcnLicenseNumber] = useState("");
   const [location, setLocation] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState("");
@@ -60,9 +62,7 @@ export default function SignUpPage() {
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-green-600">
               <LogoIcon size={22} />
             </div>
-            <span className="text-white text-2xl font-bold">
-              PharmaCycle.AI
-            </span>
+            <BrandWordmark tone="light" />
           </div>
           <p className="text-green-100 text-sm ml-[52px] -mt-1">
             Share. Save. Save Lives.
@@ -175,6 +175,23 @@ export default function SignUpPage() {
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
+
+            {role === "pharmacy" && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  PCN license number
+                </label>
+                <input
+                  type="text"
+                  value={pcnLicenseNumber}
+                  onChange={(e) => setPcnLicenseNumber(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  This field is displayed for completeness only and is not sent anywhere yet.
+                </p>
+              </div>
+            )}
 
             <label className="flex items-start gap-2 mb-6 cursor-pointer">
               <input

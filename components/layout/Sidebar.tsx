@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import AppIcon, { LogoIcon, type AppIconName } from "@/components/ui/AppIcon";
+import BrandWordmark from "@/components/ui/BrandWordmark";
 import { useAuth } from "@/contexts/AuthContext";
 import { alertsApi, transferRequestsApi } from "@/lib/api";
 import { initials } from "@/lib/format";
@@ -90,14 +91,7 @@ export default function Sidebar({
           <div className="w-9 h-9 bg-green-600 rounded-xl flex items-center justify-center shrink-0 text-white">
             <LogoIcon size={20} />
           </div>
-          <div>
-            <div className="font-bold text-gray-900 text-[15px] leading-tight">
-              PharmaCycle.AI
-            </div>
-            <div className="text-[11px] text-gray-400 leading-tight">
-              Share. Save. Save Lives.
-            </div>
-          </div>
+          <BrandWordmark size="sm" showTagline />
         </div>
         {/* Close button — mobile only */}
         <button

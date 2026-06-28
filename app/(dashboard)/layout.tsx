@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import AuthGuard from "@/components/auth/AuthGuard";
-import AppIcon from "@/components/ui/AppIcon";
 import { LogoIcon } from "@/components/ui/AppIcon";
+import BrandWordmark from "@/components/ui/BrandWordmark";
 
 export default function DashboardLayout({
   children,
@@ -46,9 +46,7 @@ export default function DashboardLayout({
               <div className="w-7 h-7 bg-green-600 rounded-lg flex items-center justify-center text-white">
                 <LogoIcon size={16} />
               </div>
-              <span className="font-bold text-gray-900 text-sm">
-                PharmaCycle.AI
-              </span>
+              <BrandWordmark size="sm" />
             </div>
             {/* Spacer to keep logo centered */}
             <div className="w-9" />

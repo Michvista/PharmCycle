@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import AppIcon, { LogoIcon } from "@/components/ui/AppIcon";
+import BrandWordmark from "@/components/ui/BrandWordmark";
 import { consumerApi } from "@/lib/api";
 import { formatNaira } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,10 +42,7 @@ export default function ConsumerSearchPage() {
           <div className="w-9 h-9 bg-green-600 rounded-xl flex items-center justify-center text-white">
             <LogoIcon size={18} />
           </div>
-          <div>
-            <div className="font-bold text-gray-900">PharmaCycle.AI</div>
-            <div className="text-xs text-gray-400">Find medicines near you</div>
-          </div>
+          <BrandWordmark size="sm" />
         </div>
         <div className="flex items-center gap-3">
           {consumer ? (
@@ -121,7 +119,7 @@ export default function ConsumerSearchPage() {
                       </h3>
                       <p className="text-xs text-gray-400">{r.dosageForm}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        {r.pharmacy.name} · {r.pharmacy.city},{" "}
+                        {r.pharmacy.name} - {r.pharmacy.city},{" "}
                         {r.pharmacy.state}
                       </p>
                       <p className="text-xs text-gray-400">

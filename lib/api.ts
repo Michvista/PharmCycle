@@ -99,6 +99,16 @@ export const authApi = {
       user: { id: string; name: string; email: string; role: string };
       pharmacy: { id: string; name: string; city: string; state: string };
     }>("/auth/register", { method: "POST", body: JSON.stringify(data) }),
+  forgotPasswordPharmacy: (email: string) =>
+    request<{ message: string; resetToken: string; resetUrl: string }>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+  resetPasswordPharmacy: (token: string, password: string) =>
+    request<{ message: string }>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
+    }),
   loginConsumer: (email: string, password: string) =>
     request<{
       token: string;
@@ -132,6 +142,16 @@ export const authApi = {
     }>("/consumer/auth/register", {
       method: "POST",
       body: JSON.stringify(data),
+    }),
+  forgotPasswordConsumer: (email: string) =>
+    request<{ message: string; resetToken: string; resetUrl: string }>("/consumer/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+  resetPasswordConsumer: (token: string, password: string) =>
+    request<{ message: string }>("/consumer/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
     }),
   me: () =>
     request<{

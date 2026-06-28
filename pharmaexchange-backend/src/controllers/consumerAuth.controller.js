@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
 const { signToken } = require('../utils/jwt');
+const { createResetToken, consumeResetToken } = require('../lib/passwordResetStore');
 
 /**
  * POST /consumer/auth/register
@@ -52,4 +53,38 @@ async function loginConsumer(req, res) {
   });
 }
 
-module.exports = { registerConsumer, loginConsumer };
+async function requestPasswordReset(req, res) {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+
+  const consumer = await prisma.consumer.findUnique({ where: { email } });
+  if (!consumer) {
+    return res.status(404).json({ error: 'No account found for that email' });
+  }
+
+  const resetToken = await createResetToken({ accountType: 'CONSUMER', email: consumer.email });
+  res.json({
+    message: 'Reset link created',
+    resetToken,
+    resetUrl: `/reset-password?role=consumer&token=${resetToken}`,
+  });
+}
+
+async function resetPassword(req, res) {
+  const { token, password } = req.body;
+  if (!token || !password) return res.status(400).json({ error: 'Token and password required' });
+  if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+  const entry = await consumeResetToken(token, 'CONSUMER');
+  if (!entry) return res.status(400).json({ error: 'Reset link is invalid or has expired' });
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  await prisma.consumer.update({
+    where: { email: entry.email },
+    data: { password: hashedPassword },
+  });
+
+  res.json({ message: 'Password updated successfully' });
+}
+
+module.exports = { registerConsumer, loginConsumer, requestPasswordReset, resetPassword };

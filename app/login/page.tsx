@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import AppIcon, { LogoIcon } from "@/components/ui/AppIcon";
+import BrandWordmark from "@/components/ui/BrandWordmark";
 import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/api";
 
@@ -39,9 +40,7 @@ export default function LoginPage() {
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-green-600">
               <LogoIcon size={22} />
             </div>
-            <span className="text-white text-2xl font-bold">
-              PharmaCycle.AI
-            </span>
+            <BrandWordmark tone="light" />
           </div>
           <p className="text-green-100 text-sm ml-[52px] -mt-1">
             Share. Save. Save Lives.
@@ -71,9 +70,7 @@ export default function LoginPage() {
             <div className="w-9 h-9 bg-green-600 rounded-xl flex items-center justify-center text-white">
               <LogoIcon size={18} />
             </div>
-            <span className="text-gray-900 text-xl font-bold">
-              PharmaCycle.AI
-            </span>
+            <BrandWordmark />
           </div>
 
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
@@ -154,6 +151,11 @@ export default function LoginPage() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer text-xs">
                   {showPassword ? "Hide" : "Show"}
                 </button>
+              </div>
+              <div className="mt-2 flex items-center justify-end">
+                <Link href="/forgot-password" className="text-xs font-semibold text-green-700 hover:text-green-800">
+                  Forgot password?
+                </Link>
               </div>
             </div>
 

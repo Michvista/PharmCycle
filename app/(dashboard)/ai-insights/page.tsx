@@ -65,7 +65,7 @@ export default function AIInsightsPage() {
         <div className="flex flex-wrap gap-3">
           {([
             ["EXPIRY_RISK", "Generate Expiry Risk"],
-            ["DEMAND_FORECAST", "Generate Demand Forecast"],
+            ["DEMAND_FORECAST", "Generate Drug Forecast"],
             ["RESTOCK_SUGGESTION", "Generate Restock Plan"],
           ] as const).map(([type, label]) => (
             <button key={type} onClick={() => generate(type)} disabled={generating === type}
@@ -105,7 +105,7 @@ export default function AIInsightsPage() {
             <div className="bg-white rounded-xl border border-gray-100 p-5">
               <h3 className="font-semibold text-gray-900 mb-4">Demand Forecast</h3>
               {forecasts.length === 0 ? (
-                <p className="text-sm text-gray-500">No forecast data yet.</p>
+                <p className="text-sm text-gray-500">No drug forecast data yet.</p>
               ) : (
                 <div className="space-y-3">
                   {forecasts.map((f, i) => (
