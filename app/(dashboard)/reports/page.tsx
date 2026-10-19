@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import TopBar from "@/components/layout/TopBar";
 import StatCard from "@/components/ui/StatCard";
 import AppIcon from "@/components/ui/AppIcon";
-import { analyticsApi, dashboardApi, inventoryApi } from "@/lib/api";
+import { analyticsApi, dashboardApi, inventoryApi, transferRequestsApi } from "@/lib/api";
 import { formatDate, formatNaira } from "@/lib/format";
 
 export default function ReportsPage() {
@@ -32,8 +32,8 @@ export default function ReportsPage() {
         `${i.medicine.name} ${i.medicine.strength}`,
         i.medicine.category,
         i.batchNumber,
-        i.quantity,
-        i.sellingPrice,
+        String(i.quantity),
+        String(i.sellingPrice),
         formatDate(i.expiryDate),
         i.status,
       ]),
@@ -48,13 +48,48 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   }
 
+  async function exportTransferReport() {
+    const incoming = await transferRequestsApi.list("incoming").catch(() => ({ requests: [] }));
+    const outgoing = await transferRequestsApi.list("outgoing").catch(() => ({ requests: [] }));
+
+    const rows = [
+      ["Direction", "Medicine", "Partner", "Quantity", "Total", "Status", "Date"],
+      ...[...incoming.requests, ...outgoing.requests].map((request) => {
+        const med = request.listing?.inventoryItem?.medicine;
+        const partner = request.requestingPharmacy || request.listing?.pharmacy;
+        const direction = incoming.requests.some((item) => item.id === request.id) ? "incoming" : "outgoing";
+        return [
+          direction,
+          med ? `${med.name} ${med.strength}` : "Medicine",
+          partner?.name || "Partner",
+          String(request.quantity),
+          ((request.listing?.inventoryItem?.sellingPrice ?? 0) * request.quantity).toString(),
+          request.status,
+          formatDate(request.createdAt),
+        ];
+      }),
+    ];
+
+    const csv = rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `transfer-report-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <>
       <TopBar title="Reports" subtitle="Export and review inventory and transfer reports.">
-        <button onClick={exportInventory}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-semibold cursor-pointer">
+        <button onClick={exportInventory} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-semibold cursor-pointer">
           <AppIcon name="download" size={16} />
           Export Inventory CSV
+        </button>
+        <button onClick={exportTransferReport} className="ml-3 flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold cursor-pointer">
+          <AppIcon name="download" size={16} />
+          Export Transfer CSV
         </button>
       </TopBar>
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -71,23 +106,21 @@ export default function ReportsPage() {
 
             <div className="bg-white rounded-xl border border-gray-100 p-5">
               <h3 className="text-base font-semibold text-gray-900 mb-2">Available Reports</h3>
-              <p className="text-sm text-gray-500 mb-4">Download inventory data as CSV for external analysis.</p>
+              <p className="text-sm text-gray-500 mb-4">Download inventory and transfer data as CSV for external analysis.</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="border border-gray-100 rounded-xl p-4 flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-gray-900">Inventory Report</p>
                     <p className="text-xs text-gray-400">All medicines, batches, quantities, prices</p>
                   </div>
-                  <button onClick={exportInventory} className="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-semibold cursor-pointer">
-                    Download
-                  </button>
+                  <button onClick={exportInventory} className="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-semibold cursor-pointer">Download</button>
                 </div>
-                <div className="border border-gray-100 rounded-xl p-4 flex items-center justify-between opacity-60">
+                <div className="border border-gray-100 rounded-xl p-4 flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-gray-900">Transfer Report</p>
-                    <p className="text-xs text-gray-400">View on Transfer Requests page</p>
+                    <p className="text-xs text-gray-400">All incoming and outgoing transfer requests</p>
                   </div>
-                  <span className="text-xs text-gray-400">In-app</span>
+                  <button onClick={exportTransferReport} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold cursor-pointer">Download</button>
                 </div>
               </div>
             </div>
