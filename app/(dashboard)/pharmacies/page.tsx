@@ -1,7 +1,6 @@
 "use client";
 
 import TopBar from "@/components/layout/TopBar";
-import AppIcon from "@/components/ui/AppIcon";
 import { useEffect, useState } from "react";
 import { pharmaciesApi } from "@/lib/api";
 
