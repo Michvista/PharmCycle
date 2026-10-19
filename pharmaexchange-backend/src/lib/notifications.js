@@ -28,7 +28,7 @@ async function sendNotification({
       await resend.emails.send({
         from:
           process.env.EMAIL_FROM ||
-          "PharmaExchange <notifications@pharmaexchange.dev>",
+          "PharmaCycle.AI <pharmaacycleai@gmail.com>",
         to,
         replyTo,
         subject,
